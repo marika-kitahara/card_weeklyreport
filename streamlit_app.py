@@ -8,7 +8,7 @@ from collections import defaultdict
 
 # ページ設定
 st.set_page_config(layout="wide")
-st.title("📊 期間中CV・配信費集計")
+st.title("📊 ウィークリーレポート集計用　期間中CV・配信費集計")
 
 # ユーティリティ
 def _norm_text(x) -> str:
@@ -48,105 +48,52 @@ def _excel_col_to_idx(col: str) -> int:
     return idx - 1
 
 # =====================
-# AFマスタ取得（OneDrive + フォールバック）
-# =====================
-from pathlib import Path
-import os
-import shutil
-import tempfile
-
-def try_get_af_master_from_env():
-    root = os.environ.get("SP_MASTER_ROOT")
-
-    if not root:
-        return None, "環境変数 SP_MASTER_ROOT が未設定です"
-
-    path = os.path.join(
-        root,
-        "Team - LSJ IN2 - 実績集計用",
-        "AFマスター.xlsx"
-    )
-
-    # ✅ デバッグ出力（ここに入れる）
-    st.sidebar.write("root:", root)
-    st.sidebar.write("path:", path)
-    st.sidebar.write("exists:", os.path.exists(path))
-
-    if not os.path.exists(path):
-        return None, f"ファイルが存在しません: {path}"
-
-    try:
-        tmp_dir = Path(tempfile.gettempdir()) / "card_weeklyreport"
-        tmp_dir.mkdir(exist_ok=True)
-
-        tmp_path = tmp_dir / "AFマスター.xlsx"
-
-        shutil.copy2(path, tmp_path)
-
-        pd.read_excel(tmp_path, nrows=1, engine="openpyxl")
-
-        return tmp_path, None
-
-    except Exception as e:
-        return None, f"読み込みエラー: {e}"
-
-# =====================
-# UI：AFマスタ読み込み
+# UI：AFマスタ読み込み（クラウド版）
 # =====================
 st.sidebar.header("📂 AFマスタ設定")
+st.sidebar.info("SharePointから最新のAFマスタを取得し、毎回アップロードしてください。")
 
-af_file = None
+st.sidebar.link_button(
+    "📂 SharePointを開く",
+    "https://officerakuten.sharepoint.com/:f:/r/sites/LSJIN2/Shared%20Documents/%E5%AE%9F%E7%B8%BE%E9%9B%86%E8%A8%88%E7%94%A8?csf=1&web=1&e=Wcyavb"
+)
 
-af_path, af_error = try_get_af_master_from_env()
+af_file = st.sidebar.file_uploader(
+    "AFマスター.xlsx",
+    type=["xlsx"],
+    key="af_master",
+    help="AFマスター.xlsx をアップロードしてください。"
+)
 
-if af_path:
-    st.sidebar.success("OneDriveからAFマスタ読み込み成功")
-else:
-    st.sidebar.warning("OneDriveからの読み込みに失敗しました")
-    st.sidebar.text(af_error)
-
-    st.sidebar.info("AFマスタをアップロードしてください👇")
-
-    st.sidebar.link_button(
-        "📂 SharePointを開く",
-        "https://officerakuten.sharepoint.com/:f:/r/sites/LSJIN2/Shared%20Documents/%E5%AE%9F%E7%B8%BE%E9%9B%86%E8%A8%88%E7%94%A8?csf=1&web=1&e=Wcyavb"
-    )
-
-    af_file = st.sidebar.file_uploader(
-        "AFマスター.xlsx",
-        type="xlsx",
-        key="af_master"
-    )
-
-    if af_file is None:
-        st.stop()
+if af_file is None:
+    st.info("左側のサイドバーからAFマスター.xlsxをアップロードしてください。")
+    st.stop()
 
 # =====================
 # AFマスタ読込み
 # =====================
 try:
-    if af_path:
-        af_df = pd.read_excel(
-            af_path,
-            usecols="B:D",
-            header=1,
-            engine="openpyxl"
-        )
-    else:
-        af_df = pd.read_excel(
-            af_file,
-            usecols="B:D",
-            header=1,
-            engine="openpyxl"
-        )
-
+    af_df = pd.read_excel(
+        af_file,
+        usecols="B:D",
+        header=1,
+        engine="openpyxl"
+    )
 except Exception as e:
     st.error(f"AFマスタの読み込みに失敗しました: {e}")
     st.stop()
 
+if len(af_df.columns) != 3:
+    st.error("AFマスタのB～D列を正しく読み込めませんでした。ファイル形式を確認してください。")
+    st.stop()
+
 af_df.columns = ["AFコード", "媒体", "分類"]
+af_df["AFコード"] = af_df["AFコード"].apply(lambda x: _norm_text(x).upper())
+af_df["媒体"] = af_df["媒体"].apply(_norm_text)
+af_df["分類"] = af_df["分類"].apply(_norm_text)
+af_df = af_df[af_df["AFコード"] != ""].copy()
 af_df = af_df[
-    ~af_df["分類"].astype(str).str.contains("display", case=False, na=False)
+    ~af_df["分類"].str.contains("display", case=False, na=False)
 ].copy()
 
 # =====================
