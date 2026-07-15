@@ -51,11 +51,11 @@ def _excel_col_to_idx(col: str) -> int:
 # UI：AFマスタ読み込み（クラウド版）
 # =====================
 st.sidebar.header("📂 AFマスタ設定")
-st.sidebar.info("SharePointから最新のAFマスタを取得し、毎回アップロードしてください。")
+st.sidebar.info("最新のAFマスタを取得し、毎回アップロードしてください。")
 
 st.sidebar.link_button(
-    "📂 SharePointを開く",
-    "https://officerakuten.sharepoint.com/:f:/r/sites/LSJIN2/Shared%20Documents/%E5%AE%9F%E7%B8%BE%E9%9B%86%E8%A8%88%E7%94%A8?csf=1&web=1&e=Wcyavb"
+    "📂 AFマスタ",
+    "https://rak.box.com/s/jmks0tjanuskp957lq4wmepun5cpm5xd"
 )
 
 af_file = st.sidebar.file_uploader(
