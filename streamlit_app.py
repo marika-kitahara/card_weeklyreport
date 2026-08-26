@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from pandas.api.types import is_datetime64_any_dtype as is_dt
 
 # ページ設定
@@ -104,7 +105,7 @@ def _safe_minmax_dates_from_cost(file):
 
 
 # デフォルトは作業日の8日前～前日。カレンダーから変更可能。
-today = date.today()
+today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
 default_start = today - timedelta(days=8)
 default_end = today - timedelta(days=1)
 
