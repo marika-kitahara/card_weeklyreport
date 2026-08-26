@@ -106,7 +106,7 @@ def _safe_minmax_dates_from_cost(file):
 
 # デフォルトは作業日の8日前～前日。カレンダーから変更可能。
 today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
-default_start = today - timedelta(days=8)
+default_start = today - timedelta(days=7)
 default_end = today - timedelta(days=1)
 
 start_date, end_date = st.date_input(
