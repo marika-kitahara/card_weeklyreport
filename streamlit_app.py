@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from io import BytesIO
-from datetime import date
+from datetime import date, timedelta
 from pandas.api.types import is_datetime64_any_dtype as is_dt
 
 # ページ設定
@@ -103,12 +103,10 @@ def _safe_minmax_dates_from_cost(file):
     return None
 
 
-default_start = date.today()
-default_end = date.today()
-if cost_file:
-    mm = _safe_minmax_dates_from_cost(cost_file)
-    if mm:
-        default_start, default_end = mm
+# デフォルトは作業日の8日前～前日。カレンダーから変更可能。
+today = date.today()
+default_start = today - timedelta(days=8)
+default_end = today - timedelta(days=1)
 
 start_date, end_date = st.date_input(
     "集計期間",
