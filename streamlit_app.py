@@ -5,18 +5,13 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 from pandas.api.types import is_datetime64_any_dtype as is_dt
 
-# ページ設定
 st.set_page_config(layout="wide")
 st.title("📊 ウィークリーレポート集計用　期間中CV・配信費集計")
 
-# =====================
-# ユーティリティ
-# =====================
 def _norm_text(x) -> str:
     if x is None:
         return ""
     return str(x).replace("\r", "").replace("\n", "").strip()
-
 
 def _coerce_date_series(s: pd.Series) -> pd.Series:
     if s is None:
@@ -33,7 +28,6 @@ def _coerce_date_series(s: pd.Series) -> pd.Series:
         )
     return pd.to_datetime(s2, errors="coerce")
 
-
 def _excel_col_to_idx(col: str) -> int:
     """Excel列記号(A, Z, AA, BC...)を0始まり列番号へ変換。"""
     col = _norm_text(col).upper()
@@ -42,7 +36,6 @@ def _excel_col_to_idx(col: str) -> int:
         if "A" <= ch <= "Z":
             idx = idx * 26 + (ord(ch) - ord("A") + 1)
     return idx - 1
-
 
 def _sum_col_in_period(df: pd.DataFrame, date_col: str, value_col: str,
                        start_date, end_date) -> float:
@@ -65,16 +58,9 @@ def _sum_col_in_period(df: pd.DataFrame, date_col: str, value_col: str,
         .sum()
     )
 
-
-# =====================
-# アップロード
-# =====================
 st.header("📑 CV・配信費集計")
 cost_file = st.file_uploader("コストレポート", type="xlsx", key="cost")
 
-# =====================
-# 期間決定
-# =====================
 def _safe_minmax_dates_from_cost(file):
     """Listing(B列) / Affiliate(A列) の日付から初期期間を決定。"""
     try:
@@ -103,8 +89,6 @@ def _safe_minmax_dates_from_cost(file):
         pass
     return None
 
-
-# デフォルトは作業日の8日前～前日。カレンダーから変更可能。
 today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
 default_start = today - timedelta(days=7)
 default_end = today - timedelta(days=1)
@@ -118,10 +102,6 @@ if start_date > end_date:
 
 days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days + 1
 
-# =====================
-# 申込件数：コストレポートだけで作成
-# =====================
-# 指定された列定義
 LISTING_MEDIA_COLS = {
     "LS_Google単体":       {"cv": "BC", "cost": "BB"},
     "LS_Google単体以外":   {"cv": "CM", "cost": "CL"},
@@ -131,7 +111,6 @@ LISTING_MEDIA_COLS = {
     "LS_Microsoft単体":    {"cv": "IA", "cost": "HZ"},
     "LS_Microsoft単体以外": {"cv": "JK", "cost": "JJ"},
 }
-
 
 def _build_application_summary_from_cost(xls: pd.ExcelFile) -> pd.DataFrame:
     values = {
@@ -211,24 +190,17 @@ def _build_application_summary_from_cost(xls: pd.ExcelFile) -> pd.DataFrame:
             "合計費用": round(float(cost), 0),
         })
 
-    # 媒体別
     add_row("Affiliate", "Affiliate", values["Affiliate"]["cv"], values["Affiliate"]["cost"])
     for media in LISTING_MEDIA_COLS:
         add_row("Listing", media, values[media]["cv"], values[media]["cost"])
 
-    # 集約行（「その他」は廃止）
     for category in ["ALL", "SEM", "Google", "Yahoo", "Microsoft", "単体", "単体以外"]:
         add_row(category, "", aggregate[category]["cv"], aggregate[category]["cost"])
 
     return pd.DataFrame(rows)
 
-
-# =====================
-# コストレポート日別 Forecast/実績（全期間）
-# =====================
 daily_cost_df = None
 daily_cost_df_for_excel = None
-
 
 def _build_daily_cost_report_all_range(xls: pd.ExcelFile):
     sheets = []
@@ -243,7 +215,6 @@ def _build_daily_cost_report_all_range(xls: pd.ExcelFile):
     if not sheets:
         return None, None
 
-    # Affiliate Forecast配信費は V列（0始まり21）へ修正
     col_idx = {
         "Affiliate": {
             "date": _excel_col_to_idx("A"),
@@ -329,7 +300,6 @@ def _build_daily_cost_report_all_range(xls: pd.ExcelFile):
         s_ac_afcv = safe_num(idxs["actual_afcv"])
         s_ac_cost = safe_num(idxs["actual_cost"])
 
-        # 既存仕様を維持：Affiliate実績AFCVは×0.9
         if typ == "Affiliate":
             s_ac_afcv = s_ac_afcv * 0.9
 
@@ -363,10 +333,6 @@ def _build_daily_cost_report_all_range(xls: pd.ExcelFile):
     df_flat["日付"] = pd.to_datetime(df_flat["日付"]).dt.strftime("%Y/%m/%d")
     return df_flat, df_flat.copy()
 
-
-# =====================
-# コストレポート日別：発行実績
-# =====================
 def _build_daily_issue_cost_from_cost_report(xls: pd.ExcelFile):
     records = []
 
@@ -419,10 +385,6 @@ def _build_daily_issue_cost_from_cost_report(xls: pd.ExcelFile):
         .reset_index()
     )
 
-
-# =====================
-# 集計実行・プレビュー
-# =====================
 final_df = None
 issue_cost_df = None
 
@@ -446,10 +408,6 @@ if daily_cost_df is not None and not daily_cost_df.empty:
     st.subheader("🗓️ コストレポート（日別・Forecast/実績）※Affの実績AFCV=*0.9、DisはnonIFRS除外")
     st.dataframe(daily_cost_df, use_container_width=True)
 
-
-# =====================
-# Excel出力（申込件数 / コストレポート日別）
-# =====================
 if (final_df is not None and not final_df.empty) or \
    (daily_cost_df_for_excel is not None and not daily_cost_df_for_excel.empty):
     output = BytesIO()
@@ -457,7 +415,6 @@ if (final_df is not None and not final_df.empty) or \
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
         workbook = writer.book
 
-        # 1) 申込件数
         if final_df is not None and not final_df.empty:
             final_df.to_excel(writer, index=False, sheet_name="申込件数")
             ws = writer.sheets["申込件数"]
@@ -469,7 +426,6 @@ if (final_df is not None and not final_df.empty) or \
             ws.set_column(1, 1, 26)
             ws.set_column(2, 4, 14)
 
-        # 2) コストレポート日別（全期間）
         if daily_cost_df_for_excel is not None and not daily_cost_df_for_excel.empty:
             ws2 = workbook.add_worksheet("コストレポート日別")
             writer.sheets["コストレポート日別"] = ws2
@@ -478,13 +434,11 @@ if (final_df is not None and not final_df.empty) or \
             fmt_date = workbook.add_format({"num_format": "yyyy/m/d", "border": 1, "align": "center"})
             fmt_num = workbook.add_format({"num_format": "#,##0.00", "border": 1})
 
-            # ヘッダー
             ws2.merge_range(0, 0, 2, 0, "日付", fmt_center)
             ws2.merge_range(0, 1, 0, 6, "Forecast", fmt_center)
             ws2.merge_range(0, 7, 0, 12, "実績", fmt_center)
             ws2.merge_range(0, 13, 0, 15, "発行", fmt_center)
             ws2.merge_range(1, 13, 1, 15, "実績", fmt_center)
-
             ws2.merge_range(1, 1, 1, 3, "AFCV", fmt_center)
             ws2.merge_range(1, 4, 1, 6, "配信費", fmt_center)
             ws2.merge_range(1, 7, 1, 9, "AFCV", fmt_center)
